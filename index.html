@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scanner Codici a Barre Manuale</title>
+    <title>Scanner Codici a Barre</title>
     <!-- Carica Tailwind CSS per lo stile moderno e reattivo -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Carica la libreria di scansione codici a barre QuaggaJS -->
@@ -12,13 +12,33 @@
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f3f4f6;
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        /* Contenitore principale a schermo intero */
+        #app-container {
+            width: 100%;
+            height: 100%;
+            background-color: #fff;
+            display: flex;
+            flex-direction: column;
+            border-radius: 0; /* Rimuove i bordi arrotondati per il layout a schermo intero */
+        }
+
+        /* Sezione della fotocamera in modo che si adatti allo spazio rimanente */
+        #camera-section {
+            flex-grow: 1; /* Occupa lo spazio disponibile */
         }
         #interactive.viewport {
             position: relative;
             width: 100%;
             height: 100%;
             overflow: hidden;
-            border-radius: 1rem;
         }
         #interactive.viewport canvas,
         #interactive.viewport video {
@@ -79,15 +99,15 @@
 <body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
 
     <!-- Contenitore principale dell'app -->
-    <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border-4 border-indigo-500">
+    <div id="app-container" class="bg-white shadow-xl max-w-lg overflow-hidden border-4 border-indigo-500 rounded-2xl md:w-full md:h-full">
         <!-- Intestazione -->
         <div class="bg-indigo-600 text-white p-6 text-center">
-            <h1 class="text-3xl font-bold">BarCode Scanner (Controllo Manuale)</h1>
-            <p class="mt-2 text-sm opacity-90">Inquadra il codice e premi "Cattura" per scansionare.</p>
+            <h1 class="text-3xl font-bold">BarCode Scanner</h1>
+            <p class="mt-2 text-sm opacity-90">Inquadra il codice per la scansione automatica.</p>
         </div>
 
         <!-- Sezione della fotocamera -->
-        <div id="camera-section" class="relative bg-gray-900 w-full aspect-video flex items-center justify-center p-4">
+        <div id="camera-section" class="relative bg-gray-900 w-full flex items-center justify-center p-4">
             <div id="interactive" class="viewport w-full h-full"></div>
             <div id="message-area" class="absolute inset-0 flex flex-col items-center justify-center text-white text-lg font-semibold z-10 p-4">
                 <button id="start-button" class="bg-indigo-600 text-white px-6 py-3 rounded-lg shadow-md cursor-pointer hover:bg-indigo-700 transition duration-300 transform hover:scale-105">
@@ -95,9 +115,6 @@
                 </button>
             </div>
             <div id="control-buttons" class="absolute bottom-4 flex gap-4 z-20 hidden">
-                 <button id="capture-button" class="px-6 py-3 bg-indigo-600 text-white rounded-lg shadow-md hover:bg-indigo-700 transition duration-300 transform hover:scale-105">
-                    Cattura
-                 </button>
                  <button id="stop-button" class="px-6 py-3 bg-red-600 text-white rounded-lg shadow-md hover:bg-red-700 transition duration-300 transform hover:scale-105">
                     Ferma
                  </button>
@@ -136,7 +153,6 @@
             const openLinkButton = document.getElementById('open-link-button');
             const scanAgainButton = document.getElementById('scan-again-button');
             const startButton = document.getElementById('start-button');
-            const captureButton = document.getElementById('capture-button');
             const stopButton = document.getElementById('stop-button');
             const messageArea = document.getElementById('message-area');
             const controlButtons = document.getElementById('control-buttons');
@@ -227,60 +243,14 @@
                 }
             });
 
-            // Funzione per catturare e decodificare un singolo frame
-            const captureAndDecode = () => {
-                if (!isScanning) return;
-                
-                captureButton.textContent = 'Lettura...';
-                captureButton.disabled = true;
-
-                const video = document.querySelector('#interactive video');
-                if (!video) {
-                    showErrorMessage("Video non disponibile per la cattura.");
-                    captureButton.disabled = false;
-                    captureButton.textContent = 'Cattura';
-                    return;
+            // Listener per la rilevazione di un codice a barre
+            Quagga.onDetected(function(result) {
+                if (result && result.codeResult && isScanning) {
+                    Quagga.stop();
+                    isScanning = false;
+                    displayResult(result.codeResult.code);
                 }
-                
-                const canvas = document.createElement('canvas');
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                const imageDataUrl = canvas.toDataURL('image/jpeg');
-                
-                // Ora decodeSingle viene chiamato con la sola immagine
-                Quagga.decodeSingle({
-                    src: imageDataUrl,
-                    decoder: {
-                        readers : [
-                            {
-                                format: "code_39_reader",
-                                config: {
-                                    normalizeBarcodes: true,
-                                }
-                            },
-                        ]
-                    },
-                    locator: {
-                        patchSize: "medium",
-                        halfSample: true
-                    },
-                    locate: true 
-                }, function(result) {
-                    captureButton.textContent = 'Cattura';
-                    captureButton.disabled = false;
-                    
-                    if(result && result.codeResult) {
-                        Quagga.stop();
-                        isScanning = false;
-                        displayResult(result.codeResult.code);
-                    } else {
-                        console.log("Nessun codice trovato. Riprova.");
-                        showErrorMessage("Nessun codice a barre trovato. Assicurati che sia ben inquadrato.");
-                    }
-                });
-            };
+            });
 
             // Funzione per visualizzare il risultato e nascondere il video
             const displayResult = (barcodeText) => {
@@ -293,20 +263,19 @@
                 openLinkButton.href = finalUrl;
             };
 
-            // Funzione per resettare l'interfaccia e avviare una nuova scansione
+            // Funzione per resettare l'interfaccia
             const resetApp = () => {
                 resultSection.classList.add('hidden');
                 cameraSection.classList.remove('hidden');
                 messageArea.classList.remove('hidden');
                 controlButtons.classList.add('hidden');
                 scannerIndicator.classList.remove('active');
+                startButton.textContent = 'Avvia Scansione';
+                startButton.disabled = false;
             };
             
             // Gestore dell'evento click per avviare la scansione
             startButton.addEventListener('click', startScan);
-            
-            // Gestore dell'evento click per catturare il codice
-            captureButton.addEventListener('click', captureAndDecode);
             
             // Gestore dell'evento click per fermare la scansione
             stopButton.addEventListener('click', () => {
@@ -315,17 +284,11 @@
                 }
                 isScanning = false;
                 resetApp();
-                messageArea.classList.remove('hidden');
-                controlButtons.classList.add('hidden');
-                startButton.textContent = 'Avvia Scansione';
-                startButton.disabled = false;
             });
 
             // Gestore dell'evento click per scansionare di nuovo
             scanAgainButton.addEventListener('click', () => {
-                if (isScanning) {
-                     Quagga.stop();
-                }
+                Quagga.stop();
                 isScanning = false;
                 resetApp();
                 startScan();
