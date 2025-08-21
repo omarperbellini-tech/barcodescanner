@@ -295,8 +295,7 @@
                 messageArea.classList.remove('hidden');
                 controlButtons.classList.add('hidden');
                 scannerIndicator.classList.remove('active');
-                startButton.textContent = 'Avvia Scansione';
-                startButton.disabled = false;
+                // Non reimposta il testo e lo stato del pulsante di avvio
             };
             
             // Gestore dell'evento click per avviare la scansione
@@ -310,12 +309,16 @@
                 Quagga.stop();
                 isScanning = false;
                 resetApp();
+                // Ritorna allo stato iniziale
+                messageArea.classList.remove('hidden');
+                controlButtons.classList.add('hidden');
+                startButton.textContent = 'Avvia Scansione';
+                startButton.disabled = false;
             });
 
             // Gestore dell'evento click per scansionare di nuovo
-            scanAgainButton.addEventListener('click', () => {
-                resetApp();
-            });
+            // Ora questa funzione riavvia direttamente la scansione
+            scanAgainButton.addEventListener('click', startScan);
         });
     </script>
 </body>
