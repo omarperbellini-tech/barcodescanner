@@ -32,6 +32,10 @@
         /* Stile per la cornice di rilevamento Quagga */
         .drawingBuffer {
             box-shadow: 0 0 0 100vw rgba(0, 0, 0, 0.4);
+            position: absolute; /* Assicurati che il canvas sia posizionato correttamente */
+            top: 0;
+            left: 0;
+            z-index: 15; /* Sotto l'indicatore rosso, ma sopra il video */
         }
         #error-message {
             position: absolute;
@@ -78,7 +82,7 @@
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border-4 border-indigo-500">
         <!-- Intestazione -->
         <div class="bg-indigo-600 text-white p-6 text-center">
-            <h1 class="text-3xl font-bold">BarCode Scanner+ (Controllo Manuale)</h1>
+            <h1 class="text-3xl font-bold">BarCode Scanner (Controllo Manuale)</h1>
             <p class="mt-2 text-sm opacity-90">Inquadra il codice e premi "Cattura" per scansionare.</p>
         </div>
 
@@ -189,17 +193,9 @@
                             "code_128_reader", "ean_reader", "ean_8_reader", "upc_reader", "upc_e_reader", "codabar_reader"
                         ]
                     },
-                    // Aggiungi un locator per concentrare la ricerca al centro
                     locator: {
-                        patchSize: "medium", // Dimensioni dell'area di ricerca
+                        patchSize: "medium",
                         halfSample: true
-                    },
-                    locate: true,
-                    debug: {
-                        drawBoundingBox: true,
-                        showFrequency: false,
-                        drawScanline: false,
-                        showPattern: false
                     }
                 }, function(err) {
                     if (err) {
@@ -211,6 +207,20 @@
                     Quagga.start();
                 });
             };
+
+            // Listener per il riquadro in tempo reale
+            Quagga.onProcessed(function(result) {
+                const drawingCanvas = Quagga.canvas.ctx.drawing;
+                const canvas = Quagga.canvas.dom.drawing;
+
+                if (result) {
+                    // Pulisce il canvas prima di disegnare un nuovo riquadro
+                    drawingCanvas.clearRect(0, 0, parseInt(canvas.width), parseInt(canvas.height));
+                    if (result.box) {
+                        Quagga.ImageDebug.drawPath(result.box, {x: 0, y: 1}, drawingCanvas, {color: "#0000FF", lineWidth: 3});
+                    }
+                }
+            });
 
             // Funzione per catturare e decodificare un singolo frame
             const captureAndDecode = () => {
@@ -251,7 +261,7 @@
                         patchSize: "medium",
                         halfSample: true
                     },
-                    locate: true // Riattiviamo il riquadro di localizzazione
+                    locate: true 
                 }, function(result) {
                     captureButton.textContent = 'Cattura';
                     captureButton.disabled = false;
