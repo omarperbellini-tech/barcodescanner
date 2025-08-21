@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scanner Codici a Barre Automatico</title>
+    <title>Scanner Codici a Barre Manuale</title>
     <!-- Carica Tailwind CSS per lo stile moderno e reattivo -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Carica la libreria di scansione codici a barre QuaggaJS -->
@@ -82,8 +82,8 @@
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border-4 border-indigo-500">
         <!-- Intestazione -->
         <div class="bg-indigo-600 text-white p-6 text-center">
-            <h1 class="text-3xl font-bold">BarCode Scanner++ (Automatico)</h1>
-            <p class="mt-2 text-sm opacity-90">Inquadra il codice per la scansione automatica.</p>
+            <h1 class="text-3xl font-bold">BarCode Scanner (Controllo Manuale)</h1>
+            <p class="mt-2 text-sm opacity-90">Inquadra il codice e premi "Cattura" per scansionare.</p>
         </div>
 
         <!-- Sezione della fotocamera -->
@@ -95,6 +95,9 @@
                 </button>
             </div>
             <div id="control-buttons" class="absolute bottom-4 flex gap-4 z-20 hidden">
+                 <button id="capture-button" class="px-6 py-3 bg-indigo-600 text-white rounded-lg shadow-md hover:bg-indigo-700 transition duration-300 transform hover:scale-105">
+                    Cattura
+                 </button>
                  <button id="stop-button" class="px-6 py-3 bg-red-600 text-white rounded-lg shadow-md hover:bg-red-700 transition duration-300 transform hover:scale-105">
                     Ferma
                  </button>
@@ -133,6 +136,7 @@
             const openLinkButton = document.getElementById('open-link-button');
             const scanAgainButton = document.getElementById('scan-again-button');
             const startButton = document.getElementById('start-button');
+            const captureButton = document.getElementById('capture-button');
             const stopButton = document.getElementById('stop-button');
             const messageArea = document.getElementById('message-area');
             const controlButtons = document.getElementById('control-buttons');
@@ -143,7 +147,6 @@
             const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScuTxf9g1MStnuJMBSV_YVhhSmWuorOMxL6u77rdGXYn60ebA/viewform?usp=pp_url&entry.1938943549=';
 
             let isScanning = false;
-            let quaggaInitialized = false;
 
             // Funzione per mostrare un messaggio di errore temporaneo
             const showErrorMessage = (message) => {
@@ -162,6 +165,8 @@
                 
                 startButton.textContent = 'Avvio...';
                 startButton.disabled = true;
+
+                // Nasconde il pulsante di avvio e mostra i controlli
                 messageArea.classList.add('hidden');
                 controlButtons.classList.remove('hidden');
                 scannerIndicator.classList.add('active');
@@ -172,6 +177,7 @@
                         type : "LiveStream",
                         target: videoElement,
                         constraints: {
+                            // Impostazioni per una buona risoluzione
                             width: { ideal: 1280 },
                             height: { ideal: 720 },
                             facingMode: "environment",
@@ -205,33 +211,76 @@
                         return;
                     }
                     console.log("Inizializzazione completata. Pronto per la scansione.");
-                    quaggaInitialized = true;
                     Quagga.start();
                 });
             };
 
             // Listener per il riquadro in tempo reale
             Quagga.onProcessed(function(result) {
-                if (!quaggaInitialized) return;
                 const drawingCanvas = Quagga.canvas.ctx.drawing;
                 const canvas = Quagga.canvas.dom.drawing;
 
-                if (result) {
+                if (result && result.box) {
+                    // Pulisce il canvas prima di disegnare un nuovo riquadro
                     drawingCanvas.clearRect(0, 0, parseInt(canvas.width), parseInt(canvas.height));
-                    if (result.box) {
-                        Quagga.ImageDebug.drawPath(result.box, {x: 0, y: 1}, drawingCanvas, {color: "#0000FF", lineWidth: 3});
-                    }
+                    Quagga.ImageDebug.drawPath(result.box, {x: 0, y: 1}, drawingCanvas, {color: "#0000FF", lineWidth: 3});
                 }
             });
 
-            // Listener per la rilevazione di un codice a barre
-            Quagga.onDetected(function(result) {
-                if (result && result.codeResult && isScanning) {
-                    Quagga.stop();
-                    isScanning = false;
-                    displayResult(result.codeResult.code);
+            // Funzione per catturare e decodificare un singolo frame
+            const captureAndDecode = () => {
+                if (!isScanning) return;
+                
+                captureButton.textContent = 'Lettura...';
+                captureButton.disabled = true;
+
+                const video = document.querySelector('#interactive video');
+                if (!video) {
+                    showErrorMessage("Video non disponibile per la cattura.");
+                    captureButton.disabled = false;
+                    captureButton.textContent = 'Cattura';
+                    return;
                 }
-            });
+                
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const imageDataUrl = canvas.toDataURL('image/jpeg');
+                
+                // Ora decodeSingle viene chiamato con la sola immagine
+                Quagga.decodeSingle({
+                    src: imageDataUrl,
+                    decoder: {
+                        readers : [
+                            {
+                                format: "code_39_reader",
+                                config: {
+                                    normalizeBarcodes: true,
+                                }
+                            },
+                        ]
+                    },
+                    locator: {
+                        patchSize: "medium",
+                        halfSample: true
+                    },
+                    locate: true 
+                }, function(result) {
+                    captureButton.textContent = 'Cattura';
+                    captureButton.disabled = false;
+                    
+                    if(result && result.codeResult) {
+                        Quagga.stop();
+                        isScanning = false;
+                        displayResult(result.codeResult.code);
+                    } else {
+                        console.log("Nessun codice trovato. Riprova.");
+                        showErrorMessage("Nessun codice a barre trovato. Assicurati che sia ben inquadrato.");
+                    }
+                });
+            };
 
             // Funzione per visualizzare il risultato e nascondere il video
             const displayResult = (barcodeText) => {
@@ -256,6 +305,9 @@
             // Gestore dell'evento click per avviare la scansione
             startButton.addEventListener('click', startScan);
             
+            // Gestore dell'evento click per catturare il codice
+            captureButton.addEventListener('click', captureAndDecode);
+            
             // Gestore dell'evento click per fermare la scansione
             stopButton.addEventListener('click', () => {
                 if (isScanning) {
@@ -271,7 +323,9 @@
 
             // Gestore dell'evento click per scansionare di nuovo
             scanAgainButton.addEventListener('click', () => {
-                Quagga.stop();
+                if (isScanning) {
+                     Quagga.stop();
+                }
                 isScanning = false;
                 resetApp();
                 startScan();
