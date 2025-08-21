@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scanner Codici a Barre (Alta Risoluzione)</title>
+    <title>Scanner Codici a Barre (Alta Precisione)</title>
     <!-- Carica Tailwind CSS per lo stile moderno e reattivo -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Carica la libreria di scansione codici a barre QuaggaJS -->
@@ -41,7 +41,7 @@
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border-4 border-indigo-500">
         <!-- Intestazione -->
         <div class="bg-indigo-600 text-white p-6 text-center">
-            <h1 class="text-3xl font-bold">BarCode Scanner (Alta Risoluzione)</h1>
+            <h1 class="text-3xl font-bold">BarCode Scanner (Alta Precisione)</h1>
             <p class="mt-2 text-sm opacity-90">Inquadra un codice a barre per aprire il link corretto.</p>
         </div>
 
@@ -109,11 +109,10 @@
                         type : "LiveStream",
                         target: videoElement,
                         constraints: {
-                            // Impostazioni per alta risoluzione per catturare più dettagli
-                            width: { min: 1280, ideal: 1920 },
-                            height: { min: 720, ideal: 1080 },
+                            // Impostazioni per alta risoluzione e frame rate per una migliore decodifica
+                            width: { ideal: 1280 }, // Preferisce 1280px, ma si adatta
+                            height: { ideal: 720 }, // Preferisce 720px, ma si adatta
                             facingMode: "environment", // Utilizza la fotocamera posteriore
-                            aspectRatio: { min: 1, max: 2 }
                         }
                     },
                     decoder : {
@@ -128,7 +127,11 @@
                             // Altri lettori comuni
                             "code_128_reader", "ean_reader", "ean_8_reader", "upc_reader", "upc_e_reader", "codabar_reader"
                         ]
-                    }
+                    },
+                    // Abilita la visualizzazione del box di rilevamento per il debug.
+                    // Rimuovi queste opzioni quando la scansione funziona correttamente per avere una visualizzazione pulita.
+                    locate: true,
+                    debug: true
                 }, function(err) {
                     if (err) {
                         console.error('Errore di inizializzazione:', err);
