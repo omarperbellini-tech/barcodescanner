@@ -33,6 +33,43 @@
         .drawingBuffer {
             box-shadow: 0 0 0 100vw rgba(0, 0, 0, 0.4);
         }
+        #error-message {
+            position: absolute;
+            bottom: 4rem;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 0.5rem 1rem;
+            background-color: rgba(220, 38, 38, 0.8);
+            color: white;
+            border-radius: 0.5rem;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            z-index: 30;
+        }
+        #error-message.show {
+            opacity: 1;
+        }
+        #scanner-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%; /* Occupa l'80% della larghezza della finestra */
+            height: 2px;
+            background-color: #ef4444; /* Rosso vibrante */
+            border-radius: 2px;
+            z-index: 20;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+        #scanner-indicator.active {
+            opacity: 1;
+            animation: pulse 1.5s infinite ease-in-out;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: translate(-50%, -50%) scaleX(1); }
+            50% { transform: translate(-50%, -50%) scaleX(1.1); }
+        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
@@ -61,6 +98,8 @@
                     Ferma
                  </button>
             </div>
+            <div id="error-message" class="hidden"></div>
+            <div id="scanner-indicator"></div>
         </div>
 
         <!-- Sezione dei risultati -->
@@ -97,11 +136,22 @@
             const stopButton = document.getElementById('stop-button');
             const messageArea = document.getElementById('message-area');
             const controlButtons = document.getElementById('control-buttons');
+            const errorMessageDiv = document.getElementById('error-message');
+            const scannerIndicator = document.getElementById('scanner-indicator');
 
             // URL del modulo Google a cui aggiungere il codice a barre
             const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScuTxf9g1MStnuJMBSV_YVhhSmWuorOMxL6u77rdGXYn60ebA/viewform?usp=pp_url&entry.1938943549=';
 
             let isScanning = false;
+
+            // Funzione per mostrare un messaggio di errore temporaneo
+            const showErrorMessage = (message) => {
+                errorMessageDiv.textContent = message;
+                errorMessageDiv.classList.remove('hidden');
+                setTimeout(() => {
+                    errorMessageDiv.classList.add('hidden');
+                }, 3000);
+            };
 
             // Funzione per avviare la scansione
             const startScan = () => {
@@ -114,6 +164,7 @@
                 // Nasconde il pulsante di avvio e mostra i controlli
                 messageArea.classList.add('hidden');
                 controlButtons.classList.remove('hidden');
+                scannerIndicator.classList.add('active');
 
                 Quagga.init({
                     inputStream : {
@@ -162,10 +213,24 @@
                 
                 captureButton.textContent = 'Lettura...';
                 captureButton.disabled = true;
+
+                const video = document.querySelector('#interactive video');
+                if (!video) {
+                    showErrorMessage("Video non disponibile per la cattura.");
+                    captureButton.disabled = false;
+                    captureButton.textContent = 'Cattura';
+                    return;
+                }
                 
-                // Cattura un singolo frame
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const imageDataUrl = canvas.toDataURL('image/jpeg');
+                
                 Quagga.decodeSingle({
-                    src: document.querySelector('#interactive video').src,
+                    src: imageDataUrl,
                     decoder: {
                         readers : [
                             {
@@ -181,14 +246,12 @@
                     captureButton.disabled = false;
                     
                     if(result && result.codeResult) {
-                        // In caso di successo, interrompe lo scanner e mostra il risultato
                         Quagga.stop();
                         isScanning = false;
                         displayResult(result.codeResult.code);
                     } else {
                         console.log("Nessun codice trovato. Riprova.");
-                        // Mostra un messaggio di errore temporaneo all'utente
-                        alert("Nessun codice a barre trovato. Assicurati che sia ben inquadrato.");
+                        showErrorMessage("Nessun codice a barre trovato. Assicurati che sia ben inquadrato.");
                     }
                 });
             };
@@ -197,11 +260,9 @@
             const displayResult = (barcodeText) => {
                 cameraSection.classList.add('hidden');
                 resultSection.classList.remove('hidden');
+                scannerIndicator.classList.remove('active');
 
-                // Imposta il testo del codice a barre letto
                 barcodeResultDiv.textContent = barcodeText;
-
-                // Costruisci il link finale
                 const finalUrl = GOOGLE_FORM_URL + encodeURIComponent(barcodeText);
                 openLinkButton.href = finalUrl;
             };
@@ -212,6 +273,7 @@
                 cameraSection.classList.remove('hidden');
                 messageArea.classList.remove('hidden');
                 controlButtons.classList.add('hidden');
+                scannerIndicator.classList.remove('active');
                 startButton.textContent = 'Avvia Scansione';
                 startButton.disabled = false;
             };
