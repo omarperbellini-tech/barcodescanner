@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BarCode Scanner</title>
+    <title>QuaggaJS Scanner</title>
     <!-- Carica Tailwind CSS per lo stile moderno e reattivo -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Carica la libreria di scansione codici a barre QuaggaJS -->
@@ -116,7 +116,17 @@
                         }
                     },
                     decoder : {
-                        readers : ["code_128_reader", "ean_reader", "ean_8_reader", "upc_reader", "upc_e_reader", "code_39_reader", "codabar_reader"]
+                        readers : [
+                            // Configurazione specifica per Code 39, con opzione di normalizzazione
+                            {
+                                format: "code_39_reader",
+                                config: {
+                                    normalizeBarcodes: true, // Rimuove il carattere di inizio/fine
+                                }
+                            },
+                            // Altri lettori comuni
+                            "code_128_reader", "ean_reader", "ean_8_reader", "upc_reader", "upc_e_reader", "codabar_reader"
+                        ]
                     }
                 }, function(err) {
                     if (err) {
@@ -169,3 +179,6 @@
     </script>
 </body>
 </html>
+
+</html>
+
