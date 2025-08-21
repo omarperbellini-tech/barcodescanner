@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BarCode Scanner</title>
+    <!-- Carica Tailwind CSS per lo stile moderno e reattivo -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Carica la libreria di scansione codici a barre QuaggaJS -->
+    <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        #interactive.viewport {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            border-radius: 1rem;
+        }
+        #interactive.viewport canvas,
+        #interactive.viewport video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        /* Stile per la cornice di rilevamento Quagga */
+        .drawingBuffer {
+            box-shadow: 0 0 0 100vw rgba(0, 0, 0, 0.4);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+
+    <!-- Contenitore principale dell'app -->
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border-4 border-indigo-500">
+        <!-- Intestazione -->
+        <div class="bg-indigo-600 text-white p-6 text-center">
+            <h1 class="text-3xl font-bold">BarCode Scanner</h1>
+            <p class="mt-2 text-sm opacity-90">Inquadra un codice a barre per aprire il link corretto.</p>
+        </div>
+
+        <!-- Sezione della fotocamera -->
+        <div id="camera-section" class="relative bg-gray-900 w-full aspect-video flex items-center justify-center p-4">
+            <div id="interactive" class="viewport w-full h-full"></div>
+            <div id="message-area" class="absolute inset-0 flex flex-col items-center justify-center text-white text-lg font-semibold z-10 p-4">
+                <button id="start-button" class="bg-indigo-600 text-white px-6 py-3 rounded-lg shadow-md cursor-pointer hover:bg-indigo-700 transition duration-300 transform hover:scale-105">
+                    Avvia Scansione
+                </button>
+            </div>
+        </div>
+
+        <!-- Sezione dei risultati -->
+        <div id="result-section" class="p-6 hidden">
+            <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded-lg" role="alert">
+                <p class="font-bold">Codice a barre letto con successo!</p>
+                <p>Ora puoi aprire il link del modulo compilato.</p>
+            </div>
+            <div class="mt-4">
+                <p class="font-semibold text-gray-700">Codice letto:</p>
+                <div id="barcode-result" class="bg-gray-200 p-3 rounded-lg font-mono text-gray-800 break-all"></div>
+            </div>
+            <div class="mt-4 flex flex-col sm:flex-row gap-2">
+                <a id="open-link-button" target="_blank" class="w-full sm:w-1/2 cursor-pointer inline-flex items-center justify-center px-4 py-3 bg-indigo-600 text-white rounded-lg shadow-md hover:bg-indigo-700 transition duration-300 transform hover:scale-105">
+                    Apri Link nel Browser
+                </a>
+                <button id="scan-again-button" class="w-full sm:w-1/2 px-4 py-3 bg-gray-200 text-gray-800 rounded-lg shadow-md hover:bg-gray-300 transition duration-300 transform hover:scale-105">
+                    Scansiona un altro codice
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const videoElement = document.getElementById('interactive');
+            const cameraSection = document.getElementById('camera-section');
+            const resultSection = document.getElementById('result-section');
+            const barcodeResultDiv = document.getElementById('barcode-result');
+            const openLinkButton = document.getElementById('open-link-button');
+            const scanAgainButton = document.getElementById('scan-again-button');
+            const startButton = document.getElementById('start-button');
+            const messageArea = document.getElementById('message-area');
+
+            // URL del modulo Google a cui aggiungere il codice a barre
+            const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScuTxf9g1MStnuJMBSV_YVhhSmWuorOMxL6u77rdGXYn60ebA/viewform?usp=pp_url&entry.1938943549=';
+
+            let isScanning = false;
+
+            // Funzione per avviare la scansione
+            const startScan = () => {
+                if (isScanning) return;
+                isScanning = true;
+                
+                startButton.textContent = 'Avvio...';
+                startButton.disabled = true;
+
+                // Nasconde il pulsante una volta avviata la scansione
+                messageArea.classList.add('hidden');
+
+                Quagga.init({
+                    inputStream : {
+                        name : "Live",
+                        type : "LiveStream",
+                        target: videoElement,
+                        constraints: {
+                            width: { min: 640 },
+                            height: { min: 480 },
+                            facingMode: "environment", // Utilizza la fotocamera posteriore
+                            aspectRatio: { min: 1, max: 2 }
+                        }
+                    },
+                    decoder : {
+                        readers : ["code_128_reader", "ean_reader", "ean_8_reader", "upc_reader", "upc_e_reader", "code_39_reader", "codabar_reader"]
+                    }
+                }, function(err) {
+                    if (err) {
+                        console.error('Errore di inizializzazione:', err);
+                        startButton.textContent = 'Errore!';
+                        return;
+                    }
+                    console.log("Inizializzazione completata. Pronto per la scansione.");
+                    Quagga.start();
+                });
+            };
+
+            // Listener per il risultato della scansione
+            Quagga.onDetected(function(data) {
+                Quagga.stop(); // Interrompe lo scanner dopo la prima lettura
+                isScanning = false;
+                displayResult(data.codeResult.code);
+            });
+
+            // Funzione per visualizzare il risultato e nascondere il video
+            const displayResult = (barcodeText) => {
+                cameraSection.classList.add('hidden');
+                resultSection.classList.remove('hidden');
+
+                // Imposta il testo del codice a barre letto
+                barcodeResultDiv.textContent = barcodeText;
+
+                // Costruisci il link finale
+                const finalUrl = GOOGLE_FORM_URL + encodeURIComponent(barcodeText);
+                openLinkButton.href = finalUrl;
+            };
+
+            // Funzione per resettare l'interfaccia e avviare una nuova scansione
+            const resetApp = () => {
+                resultSection.classList.add('hidden');
+                cameraSection.classList.remove('hidden');
+                messageArea.classList.remove('hidden');
+                startButton.textContent = 'Avvia Scansione';
+                startButton.disabled = false;
+            };
+            
+            // Gestore dell'evento click per avviare la scansione
+            startButton.addEventListener('click', startScan);
+
+            // Gestore dell'evento click per scansionare di nuovo
+            scanAgainButton.addEventListener('click', () => {
+                resetApp();
+            });
+        });
+    </script>
+</body>
+</html>
