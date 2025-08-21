@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Scanner Codici a Barre</title>
-    <!-- Carica Tailwind CSS per lo stile moderno e reattivo -->
+    <!-- Carica Tailwind CSS per uno stile moderno e reattivo -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Carica la libreria di scansione codici a barre QuaggaJS -->
     <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
@@ -20,6 +20,8 @@
             align-items: center;
             justify-content: center;
         }
+
+        /* Contenitore principale a schermo intero */
         #app-container {
             width: 100%;
             height: 100%;
@@ -27,14 +29,19 @@
             display: flex;
             flex-direction: column;
             border-radius: 0;
+            overflow: hidden;
         }
+
+        /* Sezione della fotocamera in modo che si adatti allo spazio rimanente */
         #camera-section {
             flex-grow: 1;
+            position: relative;
+            background-color: #000;
         }
         #interactive.viewport {
-            position: relative;
             width: 100%;
             height: 100%;
+            position: relative;
             overflow: hidden;
         }
         #interactive.viewport canvas,
@@ -46,6 +53,8 @@
             top: 0;
             left: 0;
         }
+
+        /* Stile per la cornice di rilevamento Quagga */
         .drawingBuffer {
             box-shadow: 0 0 0 100vw rgba(0, 0, 0, 0.4);
             position: absolute;
@@ -53,70 +62,77 @@
             left: 0;
             z-index: 15;
         }
-        #error-message {
+
+        /* Indicatore di stato e linea di scansione */
+        #status-message {
             position: absolute;
-            bottom: 4rem;
+            top: 1rem;
             left: 50%;
             transform: translateX(-50%);
             padding: 0.5rem 1rem;
-            background-color: rgba(220, 38, 38, 0.8);
-            color: white;
-            border-radius: 0.5rem;
-            opacity: 0;
+            background-color: rgba(255, 255, 255, 0.8);
+            color: #1f2937;
+            border-radius: 9999px;
+            font-weight: 600;
+            z-index: 25;
             transition: opacity 0.3s ease-in-out;
-            z-index: 30;
+            text-align: center;
         }
-        #error-message.show {
-            opacity: 1;
-        }
-        #scanner-indicator {
+
+        #scanner-line {
             position: absolute;
             top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 80%;
+            left: 0;
+            width: 100%;
             height: 2px;
-            background-color: #ef4444;
-            border-radius: 2px;
+            background-color: #3b82f6; /* Blu */
             z-index: 20;
             opacity: 0;
-            transition: opacity 0.3s ease-in-out;
+            transition: opacity 0.5s ease-in-out;
+            animation: scan-pulse 2s infinite ease-in-out;
         }
-        #scanner-indicator.active {
+        #scanner-line.active {
             opacity: 1;
-            animation: pulse 1.5s infinite ease-in-out;
         }
-        @keyframes pulse {
-            0%, 100% { transform: translate(-50%, -50%) scaleX(1); }
-            50% { transform: translate(-50%, -50%) scaleX(1.1); }
+
+        @keyframes scan-pulse {
+            0% { transform: scaleX(1); }
+            50% { transform: scaleX(1.1); }
+            100% { transform: scaleX(1); }
+        }
+
+        /* Animazione per i pulsanti */
+        .button-animation {
+            transition: transform 0.2s, background-color 0.2s;
+        }
+        .button-animation:hover {
+            transform: scale(1.05);
         }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
 
     <!-- Contenitore principale dell'app -->
-    <div id="app-container" class="bg-white shadow-xl max-w-lg overflow-hidden border-4 border-indigo-500 rounded-2xl md:w-full md:h-full">
+    <div id="app-container" class="bg-white shadow-2xl rounded-2xl md:w-full md:h-full max-w-lg">
         <!-- Intestazione -->
         <div class="bg-indigo-600 text-white p-6 text-center">
-            <h1 class="text-3xl font-bold">BarCode Scanner</h1>
+            <h1 class="text-3xl font-bold">Scanner Codici a Barre</h1>
             <p class="mt-2 text-sm opacity-90">Inquadra il codice per la scansione automatica.</p>
         </div>
 
-        <!-- Sezione della fotocamera -->
-        <div id="camera-section" class="relative bg-gray-900 w-full flex items-center justify-center p-4">
-            <div id="interactive" class="viewport w-full h-full"></div>
-            <div id="message-area" class="absolute inset-0 flex flex-col items-center justify-center text-white text-lg font-semibold z-10 p-4">
-                <button id="start-button" class="bg-indigo-600 text-white px-6 py-3 rounded-lg shadow-md cursor-pointer hover:bg-indigo-700 transition duration-300 transform hover:scale-105">
+        <!-- Sezione della fotocamera e controlli -->
+        <div id="camera-section">
+            <div id="interactive" class="viewport"></div>
+            <div id="status-message">Caricamento...</div>
+            <div id="scanner-line"></div>
+            <div id="control-buttons" class="absolute bottom-4 left-0 right-0 flex justify-center gap-4 p-4">
+                <button id="start-scan-btn" class="button-animation hidden bg-indigo-600 text-white px-6 py-3 rounded-lg shadow-md hover:bg-indigo-700">
                     Avvia Scansione
                 </button>
-            </div>
-            <div id="control-buttons" class="absolute bottom-4 flex gap-4 z-20 hidden">
-                 <button id="stop-button" class="px-6 py-3 bg-red-600 text-white rounded-lg shadow-md hover:bg-red-700 transition duration-300 transform hover:scale-105">
+                <button id="stop-scan-btn" class="button-animation hidden bg-red-600 text-white px-6 py-3 rounded-lg shadow-md hover:bg-red-700">
                     Ferma
-                 </button>
+                </button>
             </div>
-            <div id="error-message" class="hidden"></div>
-            <div id="scanner-indicator"></div>
         </div>
 
         <!-- Sezione dei risultati -->
@@ -130,10 +146,10 @@
                 <div id="barcode-result" class="bg-gray-200 p-3 rounded-lg font-mono text-gray-800 break-all"></div>
             </div>
             <div class="mt-4 flex flex-col sm:flex-row gap-2">
-                <a id="open-link-button" target="_blank" class="w-full sm:w-1/2 cursor-pointer inline-flex items-center justify-center px-4 py-3 bg-indigo-600 text-white rounded-lg shadow-md hover:bg-indigo-700 transition duration-300 transform hover:scale-105">
+                <a id="open-link-button" target="_blank" class="button-animation w-full sm:w-1/2 cursor-pointer inline-flex items-center justify-center px-4 py-3 bg-indigo-600 text-white rounded-lg shadow-md hover:bg-indigo-700">
                     Apri Link nel Browser
                 </a>
-                <button id="scan-again-button" class="w-full sm:w-1/2 px-4 py-3 bg-gray-200 text-gray-800 rounded-lg shadow-md hover:bg-gray-300 transition duration-300 transform hover:scale-105">
+                <button id="scan-again-button" class="button-animation w-full sm:w-1/2 px-4 py-3 bg-gray-200 text-gray-800 rounded-lg shadow-md hover:bg-gray-300">
                     Scansiona un altro codice
                 </button>
             </div>
@@ -144,68 +160,57 @@
         document.addEventListener('DOMContentLoaded', () => {
             const cameraSection = document.getElementById('camera-section');
             const resultSection = document.getElementById('result-section');
+            const startButton = document.getElementById('start-scan-btn');
+            const stopButton = document.getElementById('stop-scan-btn');
+            const scanAgainButton = document.getElementById('scan-again-button');
             const barcodeResultDiv = document.getElementById('barcode-result');
             const openLinkButton = document.getElementById('open-link-button');
-            const scanAgainButton = document.getElementById('scan-again-button');
-            const startButton = document.getElementById('start-button');
-            const stopButton = document.getElementById('stop-button');
-            const messageArea = document.getElementById('message-area');
-            const controlButtons = document.getElementById('control-buttons');
-            const errorMessageDiv = document.getElementById('error-message');
-            const scannerIndicator = document.getElementById('scanner-indicator');
+            const statusMessage = document.getElementById('status-message');
+            const scannerLine = document.getElementById('scanner-line');
 
             const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScuTxf9g1MStnuJMBSV_YVhhSmWuorOMxL6u77rdGXYn60ebA/viewform?usp=pp_url&entry.1938943549=';
             let isScanning = false;
+            let scannerActive = false;
 
-            // Define readers for common barcode formats
             const barcodeReaders = [
                 "code_39_reader", "code_128_reader", "ean_reader", "ean_8_reader",
                 "upc_reader", "upc_e_reader", "codabar_reader"
             ];
 
-            const showErrorMessage = (message) => {
-                errorMessageDiv.textContent = message;
-                errorMessageDiv.classList.remove('hidden');
-                errorMessageDiv.classList.add('show');
-                setTimeout(() => {
-                    errorMessageDiv.classList.remove('show');
-                }, 3000);
+            // Funzione per aggiornare il messaggio di stato
+            const updateStatus = (message, showButtons = false, showStop = false) => {
+                statusMessage.textContent = message;
+                startButton.classList.toggle('hidden', !showButtons || showStop);
+                stopButton.classList.toggle('hidden', !showButtons || !showStop);
             };
 
             const startScan = () => {
-                if (isScanning) return;
+                if (scannerActive) return;
+                scannerActive = true;
                 isScanning = true;
-                
-                startButton.textContent = 'Avvio...';
-                startButton.disabled = true;
 
-                messageArea.classList.add('hidden');
-                controlButtons.classList.remove('hidden');
-                scannerIndicator.classList.add('active');
+                updateStatus("Scansione in corso...", true, true);
+                scannerLine.classList.add('active');
 
                 Quagga.init({
-                    inputStream : {
-                        name : "Live",
-                        type : "LiveStream",
+                    inputStream: {
+                        name: "Live",
+                        type: "LiveStream",
                         constraints: {
                             width: { ideal: 1280 },
                             height: { ideal: 720 },
-                            facingMode: "environment",
+                            facingMode: "environment"
                         }
                     },
-                    decoder : {
-                        readers : barcodeReaders
-                    },
-                    locator: {
-                        patchSize: "medium",
-                        halfSample: true
-                    },
-                    locate: true 
+                    decoder: { readers: barcodeReaders },
+                    locator: { patchSize: "medium", halfSample: true },
+                    locate: true
                 }, (err) => {
                     if (err) {
                         console.error('Errore di inizializzazione:', err);
-                        showErrorMessage("Impossibile avviare la fotocamera. Controlla le autorizzazioni.");
-                        resetApp(); // Resets the app to initial state
+                        updateStatus("Errore: Impossibile avviare la fotocamera.", true, false);
+                        scannerActive = false;
+                        isScanning = false;
                         return;
                     }
                     console.log("Inizializzazione completata. Pronto per la scansione.");
@@ -213,29 +218,18 @@
                 });
             };
 
-            Quagga.onProcessed((result) => {
-                const drawingCanvas = Quagga.canvas.ctx.drawing;
-                const canvas = Quagga.canvas.dom.drawing;
-
-                if (result && result.box) {
-                    drawingCanvas.clearRect(0, 0, parseInt(canvas.width), parseInt(canvas.height));
-                    Quagga.ImageDebug.drawPath(result.box, {x: 0, y: 1}, drawingCanvas, {color: "#0000FF", lineWidth: 3});
-                }
-            });
-
-            Quagga.onDetected((result) => {
-                if (result && result.codeResult && isScanning) {
-                    Quagga.stop();
-                    isScanning = false;
-                    displayResult(result.codeResult.code);
-                }
-            });
+            const stopScan = () => {
+                if (!scannerActive) return;
+                Quagga.stop();
+                scannerActive = false;
+                isScanning = false;
+                scannerLine.classList.remove('active');
+            };
 
             const displayResult = (barcodeText) => {
+                stopScan();
                 cameraSection.classList.add('hidden');
                 resultSection.classList.remove('hidden');
-                scannerIndicator.classList.remove('active');
-
                 barcodeResultDiv.textContent = barcodeText;
                 const finalUrl = GOOGLE_FORM_URL + encodeURIComponent(barcodeText);
                 openLinkButton.href = finalUrl;
@@ -244,24 +238,39 @@
             const resetApp = () => {
                 resultSection.classList.add('hidden');
                 cameraSection.classList.remove('hidden');
-                messageArea.classList.remove('hidden');
-                controlButtons.classList.add('hidden');
-                scannerIndicator.classList.remove('active');
-                startButton.textContent = 'Avvia Scansione';
-                startButton.disabled = false;
+                updateStatus("Premi Avvia per iniziare", true, false);
             };
-            
+
+            // Listener per il riquadro in tempo reale
+            Quagga.onProcessed((result) => {
+                if (result && result.box) {
+                    const drawingCanvas = Quagga.canvas.ctx.drawing;
+                    const canvas = Quagga.canvas.dom.drawing;
+                    drawingCanvas.clearRect(0, 0, parseInt(canvas.width), parseInt(canvas.height));
+                    Quagga.ImageDebug.drawPath(result.box, { x: 0, y: 1 }, drawingCanvas, { color: "#00FF00", lineWidth: 3 });
+                }
+            });
+
+            // Listener per la rilevazione di un codice a barre
+            Quagga.onDetected((result) => {
+                if (result && result.codeResult && isScanning) {
+                    displayResult(result.codeResult.code);
+                }
+            });
+
+            // Inizializza l'app al caricamento
+            resetApp();
+
+            // Event Listeners
             startButton.addEventListener('click', startScan);
             stopButton.addEventListener('click', () => {
-                if (isScanning) Quagga.stop();
-                isScanning = false;
+                stopScan();
                 resetApp();
             });
             scanAgainButton.addEventListener('click', () => {
-                if (isScanning) Quagga.stop();
-                isScanning = false;
                 resetApp();
-                startScan();
+                // Aggiungiamo un piccolo ritardo per permettere al browser di rilasciare la fotocamera
+                setTimeout(startScan, 500); 
             });
         });
     </script>
