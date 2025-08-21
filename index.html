@@ -82,7 +82,7 @@
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border-4 border-indigo-500">
         <!-- Intestazione -->
         <div class="bg-indigo-600 text-white p-6 text-center">
-            <h1 class="text-3xl font-bold">BarCode Scanner (Automatico)</h1>
+            <h1 class="text-3xl font-bold">BarCode Scanner++ (Automatico)</h1>
             <p class="mt-2 text-sm opacity-90">Inquadra il codice per la scansione automatica.</p>
         </div>
 
@@ -143,6 +143,7 @@
             const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScuTxf9g1MStnuJMBSV_YVhhSmWuorOMxL6u77rdGXYn60ebA/viewform?usp=pp_url&entry.1938943549=';
 
             let isScanning = false;
+            let quaggaInitialized = false;
 
             // Funzione per mostrare un messaggio di errore temporaneo
             const showErrorMessage = (message) => {
@@ -197,15 +198,21 @@
                         showErrorMessage("Impossibile avviare la fotocamera. Controlla le autorizzazioni.");
                         startButton.textContent = 'Riprova';
                         startButton.disabled = false;
+                        isScanning = false;
+                        controlButtons.classList.add('hidden');
+                        messageArea.classList.remove('hidden');
+                        scannerIndicator.classList.remove('active');
                         return;
                     }
                     console.log("Inizializzazione completata. Pronto per la scansione.");
+                    quaggaInitialized = true;
                     Quagga.start();
                 });
             };
 
             // Listener per il riquadro in tempo reale
             Quagga.onProcessed(function(result) {
+                if (!quaggaInitialized) return;
                 const drawingCanvas = Quagga.canvas.ctx.drawing;
                 const canvas = Quagga.canvas.dom.drawing;
 
@@ -251,7 +258,9 @@
             
             // Gestore dell'evento click per fermare la scansione
             stopButton.addEventListener('click', () => {
-                Quagga.stop();
+                if (isScanning) {
+                    Quagga.stop();
+                }
                 isScanning = false;
                 resetApp();
                 messageArea.classList.remove('hidden');
@@ -262,10 +271,10 @@
 
             // Gestore dell'evento click per scansionare di nuovo
             scanAgainButton.addEventListener('click', () => {
-                 Quagga.stop(); // Ferma la scansione precedente se ancora attiva
-                 isScanning = false;
-                 resetApp();
-                 startScan();
+                Quagga.stop();
+                isScanning = false;
+                resetApp();
+                startScan();
             });
         });
     </script>
