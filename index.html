@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Scanner Codici a Barre</title>
-    <!-- Carica Tailwind CSS per uno stile moderno e reattivo -->
+    <!-- Carica Tailwind CSS per lo stile moderno e reattivo -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Carica la libreria di scansione codici a barre QuaggaJS -->
-    <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
+    <!-- Carica la libreria di scansione codici a barre ZXing-JS -->
+    <script type="text/javascript" src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -43,8 +43,10 @@
             height: 100%;
             position: relative;
             overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        #interactive.viewport canvas,
         #interactive.viewport video {
             width: 100%;
             height: 100%;
@@ -52,15 +54,6 @@
             position: absolute;
             top: 0;
             left: 0;
-        }
-
-        /* Stile per la cornice di rilevamento Quagga */
-        .drawingBuffer {
-            box-shadow: 0 0 0 100vw rgba(0, 0, 0, 0.4);
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 15;
         }
 
         /* Indicatore di stato e linea di scansione */
@@ -115,18 +108,20 @@
     <!-- Contenitore principale dell'app -->
     <div id="app-container" class="bg-white shadow-2xl rounded-2xl md:w-full md:h-full max-w-lg">
         <!-- Intestazione -->
-        <div class="bg-indigo-600 text-white p-6 text-center">
+        <div class="bg-gradient-to-r from-teal-500 to-cyan-600 text-white p-6 text-center">
             <h1 class="text-3xl font-bold">Scanner Codici a Barre</h1>
             <p class="mt-2 text-sm opacity-90">Inquadra il codice per la scansione automatica.</p>
         </div>
 
         <!-- Sezione della fotocamera e controlli -->
         <div id="camera-section">
-            <div id="interactive" class="viewport"></div>
+            <div id="interactive" class="viewport">
+                <video id="video-element" class="hidden"></video>
+            </div>
             <div id="status-message">Caricamento...</div>
             <div id="scanner-line"></div>
             <div id="control-buttons" class="absolute bottom-4 left-0 right-0 flex justify-center gap-4 p-4">
-                <button id="start-scan-btn" class="button-animation hidden bg-indigo-600 text-white px-6 py-3 rounded-lg shadow-md hover:bg-indigo-700">
+                <button id="start-scan-btn" class="button-animation hidden bg-teal-600 text-white px-6 py-3 rounded-lg shadow-md hover:bg-teal-700">
                     Avvia Scansione
                 </button>
                 <button id="stop-scan-btn" class="button-animation hidden bg-red-600 text-white px-6 py-3 rounded-lg shadow-md hover:bg-red-700">
@@ -137,7 +132,7 @@
 
         <!-- Sezione dei risultati -->
         <div id="result-section" class="p-6 hidden">
-            <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded-lg" role="alert">
+            <div class="bg-emerald-100 border-l-4 border-emerald-500 text-emerald-700 p-4 rounded-lg" role="alert">
                 <p class="font-bold">Codice a barre letto con successo!</p>
                 <p>Ora puoi aprire il link del modulo compilato.</p>
             </div>
@@ -146,7 +141,7 @@
                 <div id="barcode-result" class="bg-gray-200 p-3 rounded-lg font-mono text-gray-800 break-all"></div>
             </div>
             <div class="mt-4 flex flex-col sm:flex-row gap-2">
-                <a id="open-link-button" target="_blank" class="button-animation w-full sm:w-1/2 cursor-pointer inline-flex items-center justify-center px-4 py-3 bg-indigo-600 text-white rounded-lg shadow-md hover:bg-indigo-700">
+                <a id="open-link-button" target="_blank" class="button-animation w-full sm:w-1/2 cursor-pointer inline-flex items-center justify-center px-4 py-3 bg-teal-600 text-white rounded-lg shadow-md hover:bg-teal-700">
                     Apri Link nel Browser
                 </a>
                 <button id="scan-again-button" class="button-animation w-full sm:w-1/2 px-4 py-3 bg-gray-200 text-gray-800 rounded-lg shadow-md hover:bg-gray-300">
@@ -167,63 +162,56 @@
             const openLinkButton = document.getElementById('open-link-button');
             const statusMessage = document.getElementById('status-message');
             const scannerLine = document.getElementById('scanner-line');
+            const videoElement = document.getElementById('video-element');
 
             const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScuTxf9g1MStnuJMBSV_YVhhSmWuorOMxL6u77rdGXYn60ebA/viewform?usp=pp_url&entry.1938943549=';
+            
+            const { BrowserMultiFormatReader } = ZXing;
+            const codeReader = new BrowserMultiFormatReader();
             let isScanning = false;
             let scannerActive = false;
 
-            const barcodeReaders = [
-                "code_39_reader", "code_128_reader", "ean_reader", "ean_8_reader",
-                "upc_reader", "upc_e_reader", "codabar_reader"
-            ];
-
-            // Funzione per aggiornare il messaggio di stato
             const updateStatus = (message, showButtons = false, showStop = false) => {
                 statusMessage.textContent = message;
                 startButton.classList.toggle('hidden', !showButtons || showStop);
                 stopButton.classList.toggle('hidden', !showButtons || !showStop);
             };
 
-            const startScan = () => {
+            const startScan = async () => {
                 if (scannerActive) return;
                 scannerActive = true;
                 isScanning = true;
-
                 updateStatus("Scansione in corso...", true, true);
                 scannerLine.classList.add('active');
+                videoElement.classList.remove('hidden');
 
-                Quagga.init({
-                    inputStream: {
-                        name: "Live",
-                        type: "LiveStream",
-                        constraints: {
-                            width: { ideal: 1280 },
-                            height: { ideal: 720 },
-                            facingMode: "environment"
+                try {
+                    await codeReader.decodeFromVideoDevice(null, 'video-element', (result, err) => {
+                        if (result) {
+                            console.log('Codice a barre trovato:', result.getText());
+                            displayResult(result.getText());
                         }
-                    },
-                    decoder: { readers: barcodeReaders },
-                    locator: { patchSize: "medium", halfSample: true },
-                    locate: true
-                }, (err) => {
-                    if (err) {
-                        console.error('Errore di inizializzazione:', err);
-                        updateStatus("Errore: Impossibile avviare la fotocamera.", true, false);
-                        scannerActive = false;
-                        isScanning = false;
-                        return;
-                    }
-                    console.log("Inizializzazione completata. Pronto per la scansione.");
-                    Quagga.start();
-                });
+                        if (err && !(err instanceof ZXing.NotFoundException)) {
+                            console.error('Errore durante la scansione:', err);
+                            // Puoi decidere di non mostrare un errore per ogni NotFoundException per non intasare la console
+                        }
+                    });
+                } catch (err) {
+                    console.error('Errore di inizializzazione:', err);
+                    updateStatus("Errore: Impossibile avviare la fotocamera.", true, false);
+                    scannerActive = false;
+                    isScanning = false;
+                    videoElement.classList.add('hidden');
+                }
             };
 
             const stopScan = () => {
                 if (!scannerActive) return;
-                Quagga.stop();
+                codeReader.reset();
                 scannerActive = false;
                 isScanning = false;
                 scannerLine.classList.remove('active');
+                videoElement.classList.add('hidden');
             };
 
             const displayResult = (barcodeText) => {
@@ -241,23 +229,6 @@
                 updateStatus("Premi Avvia per iniziare", true, false);
             };
 
-            // Listener per il riquadro in tempo reale
-            Quagga.onProcessed((result) => {
-                if (result && result.box) {
-                    const drawingCanvas = Quagga.canvas.ctx.drawing;
-                    const canvas = Quagga.canvas.dom.drawing;
-                    drawingCanvas.clearRect(0, 0, parseInt(canvas.width), parseInt(canvas.height));
-                    Quagga.ImageDebug.drawPath(result.box, { x: 0, y: 1 }, drawingCanvas, { color: "#00FF00", lineWidth: 3 });
-                }
-            });
-
-            // Listener per la rilevazione di un codice a barre
-            Quagga.onDetected((result) => {
-                if (result && result.codeResult && isScanning) {
-                    displayResult(result.codeResult.code);
-                }
-            });
-
             // Inizializza l'app al caricamento
             resetApp();
 
@@ -269,7 +240,6 @@
             });
             scanAgainButton.addEventListener('click', () => {
                 resetApp();
-                // Aggiungiamo un piccolo ritardo per permettere al browser di rilasciare la fotocamera
                 setTimeout(startScan, 500); 
             });
         });
