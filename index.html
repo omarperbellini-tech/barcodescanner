@@ -32,10 +32,10 @@
         /* Stile per la cornice di rilevamento Quagga */
         .drawingBuffer {
             box-shadow: 0 0 0 100vw rgba(0, 0, 0, 0.4);
-            position: absolute; /* Assicurati che il canvas sia posizionato correttamente */
+            position: absolute;
             top: 0;
             left: 0;
-            z-index: 15; /* Sotto l'indicatore rosso, ma sopra il video */
+            z-index: 15;
         }
         #error-message {
             position: absolute;
@@ -58,9 +58,9 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 80%; /* Occupa l'80% della larghezza della finestra */
+            width: 80%;
             height: 2px;
-            background-color: #ef4444; /* Rosso vibrante */
+            background-color: #ef4444;
             border-radius: 2px;
             z-index: 20;
             opacity: 0;
@@ -95,7 +95,6 @@
                 </button>
             </div>
             <div id="control-buttons" class="absolute bottom-4 flex gap-4 z-20 hidden">
-                 <!-- Il pulsante "Cattura" è stato rimosso -->
                  <button id="stop-button" class="px-6 py-3 bg-red-600 text-white rounded-lg shadow-md hover:bg-red-700 transition duration-300 transform hover:scale-105">
                     Ferma
                  </button>
@@ -149,8 +148,9 @@
             const showErrorMessage = (message) => {
                 errorMessageDiv.textContent = message;
                 errorMessageDiv.classList.remove('hidden');
+                errorMessageDiv.classList.add('show');
                 setTimeout(() => {
-                    errorMessageDiv.classList.add('hidden');
+                    errorMessageDiv.classList.remove('show');
                 }, 3000);
             };
 
@@ -261,7 +261,12 @@
             });
 
             // Gestore dell'evento click per scansionare di nuovo
-            scanAgainButton.addEventListener('click', startScan);
+            scanAgainButton.addEventListener('click', () => {
+                 Quagga.stop(); // Ferma la scansione precedente se ancora attiva
+                 isScanning = false;
+                 resetApp();
+                 startScan();
+            });
         });
     </script>
 </body>
