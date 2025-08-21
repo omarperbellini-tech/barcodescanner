@@ -78,7 +78,7 @@
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border-4 border-indigo-500">
         <!-- Intestazione -->
         <div class="bg-indigo-600 text-white p-6 text-center">
-            <h1 class="text-3xl font-bold">BarCode Scanner (Controllo Manuale)</h1>
+            <h1 class="text-3xl font-bold">BarCode Scanner+ (Controllo Manuale)</h1>
             <p class="mt-2 text-sm opacity-90">Inquadra il codice e premi "Cattura" per scansionare.</p>
         </div>
 
@@ -234,15 +234,9 @@
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                 const imageDataUrl = canvas.toDataURL('image/jpeg');
                 
-                // Usa decodeSingle con la stessa configurazione di Quagga.init
+                // Ora decodeSingle viene chiamato con la sola immagine
                 Quagga.decodeSingle({
                     src: imageDataUrl,
-                    locate: true, // Aggiunto per garantire il corretto funzionamento del localizzatore
-                    inputStream : {
-                        name : "Live",
-                        type : "LiveStream",
-                        target: videoElement
-                    },
                     decoder: {
                         readers : [
                             {
@@ -256,7 +250,8 @@
                     locator: {
                         patchSize: "medium",
                         halfSample: true
-                    }
+                    },
+                    locate: true // Riattiviamo il riquadro di localizzazione
                 }, function(result) {
                     captureButton.textContent = 'Cattura';
                     captureButton.disabled = false;
