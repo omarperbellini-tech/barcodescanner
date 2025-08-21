@@ -189,6 +189,11 @@
                             "code_128_reader", "ean_reader", "ean_8_reader", "upc_reader", "upc_e_reader", "codabar_reader"
                         ]
                     },
+                    // Aggiungi un locator per concentrare la ricerca al centro
+                    locator: {
+                        patchSize: "medium", // Dimensioni dell'area di ricerca
+                        halfSample: true
+                    },
                     locate: true,
                     debug: {
                         drawBoundingBox: true,
@@ -229,6 +234,7 @@
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                 const imageDataUrl = canvas.toDataURL('image/jpeg');
                 
+                // Usa decodeSingle con la stessa configurazione di Quagga.init
                 Quagga.decodeSingle({
                     src: imageDataUrl,
                     decoder: {
@@ -240,6 +246,10 @@
                                 }
                             },
                         ]
+                    },
+                    locator: {
+                        patchSize: "medium",
+                        halfSample: true
                     }
                 }, function(result) {
                     captureButton.textContent = 'Cattura';
